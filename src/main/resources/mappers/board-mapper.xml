@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="boardMapper">
+	
+	<resultMap type="Board" id="resultBoard">
+		<id column="bid" property="bid" />
+		<result column="btitle" property="btitle" />
+		<result column="bwriter" property="bwriter" />
+		<result column="bcontent" property="bcontent" />
+		<result column="original_filename" property="original_filename" />
+		<result column="rename_filename" property="rename_filename" />
+		<result column="bcount" property="bcount" />
+		<result column="b_create_date" property="b_create_date" />
+		<result column="b_modify_date" property="b_modify_date" />
+		<result column="b_status" property="b_status" />
+	</resultMap>
+	
+	<resultMap type="Board" id="resultTop3">
+		<id column="bid" property="bid" />
+		<result column="btitle" property="btitle" />
+		<result column="bcount" property="bcount" />
+	</resultMap>
+	
+	<!-- 비교연산자를 쿼리문에 그냥 사용하면, 마이바티스에서
+		태그 앨리먼트의 꺽쇠괄호 등(<, >, &) 와 혼동하는 문제가 발생할 수 있음
+		이 문제를 미리 방지하기 위해 xml 코드 중 xml parser 에 의해 해석하지 말고
+		문장 그대로 해석하라는 뜻으로 <![CDATA[ 쿼리문장 ]]> 사용함
+	 -->
+	
+	<select id="selectTop3" resultMap="resultTop3">
+		<![CDATA[
+		SELECT *
+		FROM (SELECT ROWNUM RNUM, BID, BTITLE, BCOUNT
+		          FROM (SELECT * FROM BOARD
+		                    ORDER BY BCOUNT DESC))
+		WHERE RNUM >= 1 AND RNUM <= 3
+		]]>
+	</select>
+	
+	<select id="selectBoard" parameterType="_int" resultMap="resultBoard">
+		select * from board
+		where bid = #{ bid }
+	</select>
+	
+	<update id="updateBCount" parameterType="_int">
+		update board
+		set bcount = bcount + 1
+		where bid = #{ bid }
+	</update>
+	
+	<select id="getListCount" resultType="_int">
+		select count(*) from board
+	</select>
+	
+	<select id="getSearchTitleListCount" resultType="_int" parameterType="string">
+		select count(*) from board
+		where btitle like '%' || #{ keyword } || '%'
+	</select>
+	
+	<select id="getSearchWriterListCount" resultType="_int" parameterType="string">
+		select count(*) from board
+		where bwriter like '%' || #{ keyword } || '%'
+	</select>
+	
+	<select id="getSearchDateListCount" resultType="_int" 
+	parameterType="com.ict.spring.common.SearchDate">
+		select count(*) from board
+		where b_create_date between #{ begin } and #{ end }
+	</select>
+	
+	<select id="selectList" parameterType="com.ict.spring.board.model.vo.BoardPage" 
+	resultMap="resultBoard">
+		<![CDATA[
+		SELECT *
+		FROM (SELECT ROWNUM RNUM, BID, BTITLE, BWRITER, BCONTENT, 
+		                    ORIGINAL_FILENAME, RENAME_FILENAME, BCOUNT, 
+		                    B_CREATE_DATE, B_MODIFY_DATE, B_STATUS
+		            FROM (SELECT * FROM BOARD 
+		                       WHERE B_STATUS = 'Y'
+		                       ORDER BY BID DESC))
+		WHERE RNUM >= #{ startRow } AND RNUM <= #{ endRow }
+		]]>
+	</select>
+	
+	<select id="searchTitle" parameterType="com.ict.spring.common.SearchAndPage" 
+	resultMap="resultBoard">
+		<![CDATA[
+		SELECT *
+		FROM (SELECT ROWNUM RNUM, BID, BTITLE, BWRITER, BCONTENT, 
+		                    ORIGINAL_FILENAME, RENAME_FILENAME, BCOUNT, 
+		                    B_CREATE_DATE, B_MODIFY_DATE, B_STATUS
+		            FROM (SELECT * FROM BOARD 
+		                       WHERE B_STATUS = 'Y' 
+		                       and btitle like '%' || #{ keyword } || '%'
+		                       ORDER BY BID DESC))
+		WHERE RNUM >= #{ startRow } AND RNUM <= #{ endRow }
+		]]>		
+	</select>
+	
+	<select id="searchWriter" parameterType="com.ict.spring.common.SearchAndPage" 
+	resultMap="resultBoard">
+		<![CDATA[
+		SELECT *
+		FROM (SELECT ROWNUM RNUM, BID, BTITLE, BWRITER, BCONTENT, 
+		                    ORIGINAL_FILENAME, RENAME_FILENAME, BCOUNT, 
+		                    B_CREATE_DATE, B_MODIFY_DATE, B_STATUS
+		            FROM (SELECT * FROM BOARD 
+		                       WHERE B_STATUS = 'Y' 
+		                       and bwriter like '%' || #{ keyword } || '%'
+		                       ORDER BY BID DESC))
+		WHERE RNUM >= #{ startRow } AND RNUM <= #{ endRow }
+		]]>			
+	</select>
+	
+	<select id="searchDate" parameterType="com.ict.spring.common.SearchAndPage" 
+	resultMap="resultBoard">
+	<![CDATA[
+		SELECT *
+		FROM (SELECT ROWNUM RNUM, BID, BTITLE, BWRITER, BCONTENT, 
+		                    ORIGINAL_FILENAME, RENAME_FILENAME, BCOUNT, 
+		                    B_CREATE_DATE, B_MODIFY_DATE, B_STATUS
+		            FROM (SELECT * FROM BOARD 
+		                       WHERE B_STATUS = 'Y' 
+		                       and b_create_date between #{ begin } and #{ end }
+		                       ORDER BY BID DESC))
+		WHERE RNUM >= #{ startRow } AND RNUM <= #{ endRow }
+		]]>			
+	</select>
+	
+	<insert id="insertBoard" parameterType="Board">
+		insert into board
+		<if test="original_filename != null">
+		values (seq_bid.nextval, #{ btitle }, #{ bwriter }, #{ bcontent }, 
+				#{ original_filename }, #{ rename_filename }, 
+				default, sysdate, sysdate, default)
+		</if>
+		<if test="original_filename == null">
+		values (seq_bid.nextval, #{ btitle }, #{ bwriter }, #{ bcontent }, 
+				null, null, default, sysdate, sysdate, default)
+		</if>
+	</insert>
+	
+	<update id="updateBoard" parameterType="Board">
+		update board
+		set btitle = #{ btitle },
+		   bcontent = #{ bcontent }, 
+		   b_modify_date = sysdate
+		   <if test="original_filename == null">
+		   , original_filename = null,
+		   rename_filename = null
+		   </if>
+		   <if test="original_filename != null">
+		   , original_filename = #{ original_filename },
+		   rename_filename = #{ rename_filename }
+		   </if>
+		where bid = #{ bid }
+	</update>
+	
+	<update id="changeBstatusN" parameterType="_int">
+		update board
+		set b_status = 'N', 
+		   b_modify_date = sysdate
+		where bid = #{ bid }
+	</update>
+	
+</mapper>
+
+
+
+
+
+
+
+
